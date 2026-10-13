@@ -157,7 +157,13 @@ jobs:
       - name: Prepare YouTube iPA
         id: prepare_youtube
         run: |
-          wget "$YOUTUBE_URL" --quiet -O main/YouTube.ipa
+          # "draft:<release name>" pulls the IPA from a private draft release on this repo
+          if [[ "$YOUTUBE_URL" == draft:* ]]; then
+            ASSET_URL=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.draft and .name == \"${YOUTUBE_URL#draft:}\") | .assets[] | select(.name | endswith(\".ipa\")) | .url" | head -1)
+            curl -sSfL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" "$ASSET_URL" -o main/YouTube.ipa
+          else
+            wget "$YOUTUBE_URL" --quiet -O main/YouTube.ipa
+          fi
           cd main
           mv YouTube.ipa YouTube.zip
           unzip -q YouTube.zip
@@ -167,6 +173,7 @@ jobs:
 
         env:
           YOUTUBE_URL: ${{ env.URL_YT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore FFmpegKit cache
         id: ffmpeg_cache
